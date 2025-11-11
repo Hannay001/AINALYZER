@@ -30,6 +30,19 @@ def parse_args(args: List[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(args=args)
 
 
+def _safe_numeric_mean(series: pd.Series) -> float | type(pd.NA):
+    """Return the mean of a potentially non-numeric series, ignoring missing values."""
+
+    if series.empty:
+        return pd.NA
+
+    numeric = pd.to_numeric(series, errors="coerce")
+    if numeric.notna().any():
+        return float(numeric.mean(skipna=True))
+
+    return pd.NA
+
+
 def run_scan(top: int, years: int, output: Path) -> pd.DataFrame:
     configure_logging()
 
@@ -56,9 +69,9 @@ def run_scan(top: int, years: int, output: Path) -> pd.DataFrame:
                 "big_move_hit": score_series.get("big_move_hit", 0.0),
                 "boost": score_series.get("boost", 0.0),
                 "score": score_series.get("score", 0.0),
-                "mean_gap": metrics["gap_ret"].mean() if not metrics.empty else pd.NA,
-                "mean_oc": metrics["oc_ret"].mean() if not metrics.empty else pd.NA,
-                "mean_range": metrics["range_pct"].mean() if not metrics.empty else pd.NA,
+                "mean_gap": _safe_numeric_mean(metrics["gap_ret"]) if not metrics.empty else pd.NA,
+                "mean_oc": _safe_numeric_mean(metrics["oc_ret"]) if not metrics.empty else pd.NA,
+                "mean_range": _safe_numeric_mean(metrics["range_pct"]) if not metrics.empty else pd.NA,
             }
             records.append(record)
         except Exception as exc:  # pragma: no cover - defensive logging
